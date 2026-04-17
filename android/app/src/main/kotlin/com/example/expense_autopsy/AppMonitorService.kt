@@ -25,9 +25,13 @@ class AppMonitorService : Service() {
         val WATCHED_APPS = mapOf(
             "com.application.zomato"                    to "Zomato",
             "in.swiggy.android"                         to "Swiggy",
+            "com.grofers.customerapp"                   to "Blinkit",
+            "com.zeptconsumerapp"                       to "Zepto",
             "com.amazon.mShop.android.shopping"         to "Amazon",
             "com.flipkart.android"                      to "Flipkart",
             "com.myntra.android"                        to "Myntra",
+            "com.ril.ajio"                              to "Ajio",
+            "com.fsn.nykaa"                             to "Nykaa",
             "com.bms.bmsapp"                            to "BookMyShow",
             "com.bigbasket.mobileapp"                   to "BigBasket",
             "com.phonepe.app"                           to "PhonePe",
@@ -94,6 +98,12 @@ class AppMonitorService : Service() {
             lastApp = topApp
             val appName = WATCHED_APPS[topApp]
             if (appName != null) {
+                // Bring Expense Autopsy to the foreground over the watched app
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                startActivity(intent)
+
                 // Fire event to Flutter
                 val payload = mapOf(
                     "package"   to topApp,

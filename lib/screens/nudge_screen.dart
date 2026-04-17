@@ -5,6 +5,7 @@
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/behavior_engine.dart';
 import '../services/response_tracker.dart';
 
@@ -105,7 +106,12 @@ class _NudgeScreenState extends State<NudgeScreen>
       timestamp:   DateTime.now(),
     ));
 
-    if (mounted) Navigator.of(context).pop(decision);
+    if (mounted) {
+      Navigator.of(context).pop(decision);
+      if (decision == NudgeDecision.proceeded) {
+        SystemNavigator.pop();
+      }
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────────────

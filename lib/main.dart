@@ -13,6 +13,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/behavior_engine.dart';
 import 'services/monitor_service.dart';
 import 'services/response_tracker.dart';
+import 'services/app_open_tracker.dart';
+import 'services/db_service.dart';
 import 'screens/nudge_screen.dart';
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
@@ -136,6 +138,30 @@ class AppState extends ChangeNotifier {
   double sipReturn      = 12;
   int    sipMonths      = 120;
 
+  String userName = "User";
+  bool isLoading = true;
+
+  AppState() {
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    final userData = await DbService.fetchUserData('vikas@example.com');
+    if (userData != null) {
+      final profile = userData['profile'] as Map<String, dynamic>? ?? {};
+      final sip = userData['sip'] as Map<String, dynamic>? ?? {};
+
+      monthlySalary = (profile['monthlySalary'] as num?)?.toDouble() ?? monthlySalary;
+      userName = profile['name'] as String? ?? userName;
+
+      sipAmount = (sip['monthlyAmount'] as num?)?.toDouble() ?? sipAmount;
+      sipReturn = (sip['annualReturn'] as num?)?.toDouble() ?? sipReturn;
+      sipMonths = (sip['durationMonths'] as num?)?.toInt() ?? sipMonths;
+    }
+    isLoading = false;
+    notifyListeners();
+  }
+
   void toggleExpenseTag(String id) {
     expenses = expenses.map((e) {
       if (e.id != id) return e;
@@ -147,6 +173,9 @@ class AppState extends ChangeNotifier {
 
   void addExpense(Expense e) { expenses = [e, ...expenses]; notifyListeners(); }
   void removeExpense(String id) { expenses = expenses.where((e) => e.id != id).toList(); notifyListeners(); }
+
+  void addGoal(Goal g) { goals = [g, ...goals]; notifyListeners(); }
+  void removeGoal(String id) { goals = goals.where((g) => g.id != id).toList(); notifyListeners(); }
 
   void setSip({double? amount, double? ret, int? months}) {
     if (amount != null) sipAmount  = amount;
@@ -268,13 +297,18 @@ class _AppShellState extends State<AppShell> {
   Future<void> _onAppOpen(String pkg, String appName) async {
     if (_nudgeActive) return;
 
+    // Record this app open regardless of nudge
+    await AppOpenTracker.recordOpen(pkg);
+
     // Throttle — once per hour per app
     final lastTime = _lastNudge[pkg];
     if (lastTime != null &&
-        DateTime.now().difference(lastTime).inMinutes < 60) return;
+        DateTime.now().difference(lastTime).inMinutes < 60) {
+      return;
+    }
 
     final state         = AppStateProvider.of(context);
-    final openCount     = await ResponseTracker.openCountToday(pkg);
+    final openCount     = await AppOpenTracker.openCountToday(pkg);
     final budgetUsed    = state.monthlySalary > 0
         ? _monthlyTotal(state.expenses) / state.monthlySalary
         : 0.5;
@@ -329,6 +363,15 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (AppStateProvider.of(context).isLoading) {
+      return const Scaffold(
+        backgroundColor: kBg,
+        body: Center(
+          child: CircularProgressIndicator(color: kTeal),
+        ),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: kBg,
       body: _AmbientBackground(
@@ -655,7 +698,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return PageFrame(children: [
       // ── Header ──────────────────────────────────────────────────────────
-      Text('Good evening, Aarav 👋',
+      Text('Good evening, ${state.userName} 👋',
           style: spaceGrotesk(size: 22, weight: FontWeight.w700, letterSpacing: -0.5)),
       const SizedBox(height: 4),
       Text('Your money leaks are being tracked.', style: jakarta(size: 13, color: kMuted)),
@@ -817,8 +860,9 @@ class _DashboardPageState extends State<DashboardPage> {
     double essential = 0, avoidable = 0, impulse = 0;
     for (final e in expenses) {
       final m = _monthlyEquiv(e.amount, e.frequency);
-      if (e.tag == 'essential')    essential += m;
-      else if (e.tag == 'avoidable') avoidable += m;
+      if (e.tag == 'essential') {
+        essential += m;
+      } else if (e.tag == 'avoidable') avoidable += m;
       else                           impulse   += m;
     }
     final total = essential + avoidable + impulse;
@@ -947,8 +991,9 @@ class _DashboardPageState extends State<DashboardPage> {
     final leakage = _monthlyLeakage(state.expenses);
     if (state.monthlySalary > 0) {
       final ratio = leakage / state.monthlySalary;
-      if (ratio < 0.1) score += 25;
-      else if (ratio < 0.2) score += 15;
+      if (ratio < 0.1) {
+        score += 25;
+      } else if (ratio < 0.2) score += 15;
       else if (ratio < 0.3) score += 5;
       else score -= 10;
     }
@@ -1210,8 +1255,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
     double essential = 0, avoidable = 0, impulse = 0;
     for (final e in expenses) {
       final m = _monthlyEquiv(e.amount, e.frequency);
-      if (e.tag == 'essential') essential += m;
-      else if (e.tag == 'avoidable') avoidable += m;
+      if (e.tag == 'essential') {
+        essential += m;
+      } else if (e.tag == 'avoidable') avoidable += m;
       else impulse += m;
     }
     return {'essential': essential, 'avoidable': avoidable, 'impulse': impulse, 'leakage': avoidable + impulse};
@@ -1239,7 +1285,7 @@ class _ExpenseRow extends StatelessWidget {
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(expense.name, style: jakarta(size: 13, weight: FontWeight.w600)),
-          Text(_fmtINR(monthly) + '/mo · 10y: ${_fmtINR(monthly * 120)}',
+          Text('${_fmtINR(monthly)}/mo · 10y: ${_fmtINR(monthly * 120)}',
               style: jakarta(size: 11, color: kMuted)),
         ])),
         GestureDetector(
@@ -1603,9 +1649,18 @@ class _GoalsPageState extends State<GoalsPage> {
           const SizedBox(height: 14),
           SizedBox(width: double.infinity,
             child: _PrimaryButton(label: 'Add goal', onTap: () {
-              // Just collapse form for demo
+              if (_nameCtrl.text.isEmpty || _targetCtrl.text.isEmpty) return;
+              state.addGoal(Goal(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: _nameCtrl.text.trim(),
+                targetAmount: double.tryParse(_targetCtrl.text) ?? 0,
+                targetDate: DateTime.now().add(const Duration(days: 365)).toString().split(' ')[0],
+                priority: 2,
+                savedAmount: 0,
+              ));
               setState(() => _showForm = false);
-              _nameCtrl.clear(); _targetCtrl.clear();
+              _nameCtrl.clear();
+              _targetCtrl.clear();
             }),
           ),
         ])),
@@ -1665,9 +1720,9 @@ class InsightsPage extends StatelessWidget {
         ]),
         const SizedBox(height: 14),
         MetricRow(items: [
-          (label: 'Savings streak',       value: '18 days'),
+          (label: 'Savings streak',       value: '${_calculateSavingsStreak(state)} days'),
           (label: 'Challenge',            value: 'No-spend week'),
-          (label: 'Saved so far',         value: _fmtINR(1880)),
+          (label: 'Saved so far',         value: _fmtINR(_calculateTotalSaved(state))),
         ]),
       ])),
       const SizedBox(height: 12),
@@ -1764,14 +1819,27 @@ class InsightsPage extends StatelessWidget {
     int score = 50;
     if (state.monthlySalary > 0) {
       final r = leakage / state.monthlySalary;
-      if (r < 0.1) score += 25;
-      else if (r < 0.2) score += 15;
+      if (r < 0.1) {
+        score += 25;
+      } else if (r < 0.2) score += 15;
       else if (r < 0.3) score += 5;
       else score -= 10;
     }
     if (state.sipAmount >= 5000) score += 15;
     if (state.sipAmount >= 10000) score += 10;
     return '$score / 100';
+  }
+
+  int _calculateSavingsStreak(AppState state) {
+    // Placeholder: in real app would count consecutive skip days from ResponseTracker
+    // For now, estimate based on SIP engagement
+    return state.sipAmount > 0 ? math.max(8, (state.sipAmount / 2000).toInt()) : 0;
+  }
+
+  double _calculateTotalSaved(AppState state) {
+    // Placeholder: sum of all skipped nudge decisions × avg spend
+    // Would normally come from ResponseTracker.totalSaved()
+    return _monthlyLeakage(state.expenses) * 0.4; // Assume 40% saved through nudges
   }
 }
 
