@@ -18,20 +18,20 @@ import 'services/db_service.dart';
 import 'screens/nudge_screen.dart';
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
-const Color kBg            = Color(0xFF050816);
-const Color kBgSoft        = Color(0xFF0B1120);
-const Color kPanel         = Color(0xFF0A101C);
-const Color kPanelStrong   = Color(0xFF0E1525);
-const Color kBorder        = Color(0x17FFFFFF);
-const Color kBorderStrong  = Color(0x3D68E0D0);
-const Color kText          = Color(0xF5FFFFFF);
-const Color kMuted         = Color(0xB8E2E8F0);
-const Color kMutedStrong   = Color(0xE5E2E8F0);
-const Color kTeal          = Color(0xFF35F0D2);
-const Color kGreen         = Color(0xFF7DFF6C);
-const Color kBlue          = Color(0xFF66B8FF);
-const Color kAmber         = Color(0xFFF2C66D);
-const Color kRed           = Color(0xFFFF7F8A);
+const Color kBg            = Color(0xFFFFFBF0);      // Warm cream background
+const Color kBgSoft        = Color(0xFFFFFFFF);      // Pure white
+const Color kPanel         = Color(0xFFFEF5E7);      // Soft warm panel
+const Color kPanelStrong   = Color(0xFFFCEDDB);      // Warmer panel accent
+const Color kBorder        = Color(0xFFFFDFC9);      // Warm soft border
+const Color kBorderStrong  = Color(0xFFFFC9A8);      // Warmer border
+const Color kText          = Color(0xFF2D1810);      // Warm dark brown text
+const Color kMuted         = Color(0xFF7D6B5F);      // Warm muted brown
+const Color kMutedStrong   = Color(0xFF5A4A3A);      // Warm strong brown
+const Color kTeal          = Color(0xFF10B981);      // Fresh green
+const Color kGreen         = Color(0xFF34D399);      // Mint green
+const Color kBlue          = Color(0xFF3B82F6);      // Sky blue
+const Color kAmber         = Color(0xFFFB923C);      // Warm amber
+const Color kRed           = Color(0xFFF87171);      // Coral red
 
 // ─── Text styles ─────────────────────────────────────────────────────────────
 TextStyle spaceGrotesk({
@@ -199,7 +199,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
   ));
   runApp(AppStateProvider(state: AppState(), child: const ExpenseAutopsyApp()));
 }
@@ -213,10 +213,10 @@ class ExpenseAutopsyApp extends StatelessWidget {
       title: 'Expense Autopsy',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
+        brightness: Brightness.light,
         scaffoldBackgroundColor: kBg,
-        colorScheme: const ColorScheme.dark(primary: kTeal, surface: kPanel),
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme),
+        colorScheme: const ColorScheme.light(primary: kTeal, surface: kPanel),
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.light().textTheme),
         useMaterial3: true,
         sliderTheme: SliderThemeData(
           activeTrackColor: kTeal,
@@ -353,13 +353,260 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  static const _navItems = [
-    BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded),    label: 'Dashboard'),
-    BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'Expenses'),
-    BottomNavigationBarItem(icon: Icon(Icons.candlestick_chart_rounded), label: 'Simulator'),
-    BottomNavigationBarItem(icon: Icon(Icons.flag_rounded),         label: 'Goals'),
-    BottomNavigationBarItem(icon: Icon(Icons.lightbulb_rounded),    label: 'Insights'),
-  ];
+  Widget _buildDrawer(BuildContext context, AppState state) {
+    return Drawer(
+      backgroundColor: kBgSoft,
+      child: Column(
+        children: [
+          // Header with profile
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+            decoration: BoxDecoration(
+              color: kPanel,
+              border: Border(bottom: BorderSide(color: kBorder)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [kTeal, kGreen]),
+                  ),
+                  child: Center(
+                    child: Text(
+                      state.userName.isNotEmpty ? state.userName[0].toUpperCase() : 'U',
+                      style: spaceGrotesk(size: 18, weight: FontWeight.w700, color: const Color(0xFF050816)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(state.userName, style: spaceGrotesk(size: 14, weight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('₹${state.monthlySalary.toStringAsFixed(0)}/mo',
+                          style: jakarta(size: 11, color: kMuted)),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
+          // Menu items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _drawerItem(
+                  icon: Icons.dashboard_rounded,
+                  label: 'Dashboard',
+                  onTap: () {
+                    setState(() => _tab = 0);
+                    Navigator.pop(context);
+                  },
+                  selected: _tab == 0,
+                ),
+                _drawerItem(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Expenses',
+                  onTap: () {
+                    setState(() => _tab = 1);
+                    Navigator.pop(context);
+                  },
+                  selected: _tab == 1,
+                ),
+                _drawerItem(
+                  icon: Icons.candlestick_chart_rounded,
+                  label: 'Simulator',
+                  onTap: () {
+                    setState(() => _tab = 2);
+                    Navigator.pop(context);
+                  },
+                  selected: _tab == 2,
+                ),
+                _drawerItem(
+                  icon: Icons.flag_rounded,
+                  label: 'Goals',
+                  onTap: () {
+                    setState(() => _tab = 3);
+                    Navigator.pop(context);
+                  },
+                  selected: _tab == 3,
+                ),
+                _drawerItem(
+                  icon: Icons.lightbulb_rounded,
+                  label: 'Insights',
+                  onTap: () {
+                    setState(() => _tab = 4);
+                    Navigator.pop(context);
+                  },
+                  selected: _tab == 4,
+                ),
+                const Divider(color: Color(0x17FFFFFF), height: 20),
+                _drawerItem(
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showProfileModal(context, state);
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.settings_rounded,
+                  label: 'Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Settings coming soon')),
+                    );
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.help_rounded,
+                  label: 'Help',
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Help & Support coming soon')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool selected = false,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      leading: Icon(icon, color: selected ? kTeal : kMuted, size: 22),
+      title: Text(label,
+          style: jakarta(size: 14, weight: FontWeight.w600, color: selected ? kTeal : kText)),
+      onTap: onTap,
+      selected: selected,
+      selectedTileColor: kTeal.withOpacity(0.08),
+    );
+  }
+
+  void _showProfileModal(BuildContext context, AppState state) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kPanel,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: kBorder,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Profile', style: spaceGrotesk(size: 20, weight: FontWeight.w700)),
+            const SizedBox(height: 20),
+            // Profile info
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: kBgSoft,
+                border: Border.all(color: kBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(colors: [kTeal, kGreen]),
+                        ),
+                        child: Center(
+                          child: Text(
+                            state.userName.isNotEmpty ? state.userName[0].toUpperCase() : 'U',
+                            style: spaceGrotesk(size: 24, weight: FontWeight.w700, color: const Color(0xFF050816)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(state.userName, style: spaceGrotesk(size: 16, weight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text('vikas@example.com', style: jakarta(size: 12, color: kMuted)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: kBorder, height: 1),
+                  const SizedBox(height: 16),
+                  _profileRow('Monthly Salary', _fmtINR(state.monthlySalary)),
+                  const SizedBox(height: 12),
+                  _profileRow('SIP Amount', _fmtINR(state.sipAmount)),
+                  const SizedBox(height: 12),
+                  _profileRow('SIP Duration', '${(state.sipMonths / 12).round()} years'),
+                  const SizedBox(height: 12),
+                  _profileRow('Annual Return', '${state.sipReturn.toStringAsFixed(1)}%'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Edit profile coming soon')),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(99),
+                    gradient: const LinearGradient(colors: [kTeal, kGreen]),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Edit Profile',
+                      style: jakarta(size: 14, weight: FontWeight.w700, color: const Color(0xFF050816))),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -371,9 +618,47 @@ class _AppShellState extends State<AppShell> {
         ),
       );
     }
-    
+
+    final state = AppStateProvider.of(context);
+
     return Scaffold(
       backgroundColor: kBg,
+      appBar: AppBar(
+        backgroundColor: kBgSoft,
+        elevation: 0,
+        centerTitle: true,
+        title: Text('Expense Autopsy', style: spaceGrotesk(size: 18, weight: FontWeight.w700)),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: kTeal),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () => _showProfileModal(context, state),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(colors: [kTeal, kGreen]),
+                  boxShadow: [BoxShadow(color: kTeal.withOpacity(0.3), blurRadius: 8)],
+                ),
+                child: Center(
+                  child: Text(
+                    state.userName.isNotEmpty ? state.userName[0].toUpperCase() : 'U',
+                    style: spaceGrotesk(size: 16, weight: FontWeight.w700, color: const Color(0xFF050816)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      drawer: _buildDrawer(context, state),
       body: _AmbientBackground(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 280),
@@ -381,28 +666,16 @@ class _AppShellState extends State<AppShell> {
           child: KeyedSubtree(key: ValueKey(_tab), child: _pages[_tab]),
         ),
       ),
-      bottomNavigationBar: _buildNav(),
     );
   }
 
-  Widget _buildNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: kBgSoft,
-        border: Border(top: BorderSide(color: kBorder, width: 1)),
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _tab,
-        onTap: (i) => setState(() => _tab = i),
-        backgroundColor: Colors.transparent,
-        selectedItemColor: kTeal,
-        unselectedItemColor: kMuted,
-        selectedLabelStyle: jakarta(size: 10, weight: FontWeight.w600, color: kTeal),
-        unselectedLabelStyle: jakarta(size: 10, color: kMuted),
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        items: _navItems,
-      ),
+  Widget _profileRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: jakarta(size: 13, color: kMuted)),
+        Text(value, style: spaceGrotesk(size: 13, weight: FontWeight.w700, color: kTeal)),
+      ],
     );
   }
 }

@@ -32,15 +32,15 @@ class _NudgeScreenState extends State<NudgeScreen>
   late Animation<Offset> _slideUp;
   bool _deciding = false;
 
-  // Design tokens (match main.dart palette)
-  static const kBg     = Color(0xFF0A0D12);
-  static const kSurface= Color(0xFF111827);
-  static const kTeal   = Color(0xFF2DD4BF);
-  static const kGreen  = Color(0xFF4ADE80);
-  static const kRed    = Color(0xFFF87171);
-  static const kAmber  = Color(0xFFFBBF24);
-  static const kMuted  = Color(0xFF6B7280);
-  static const kBorder = Color(0xFF1F2937);
+  // Design tokens (match main.dart palette - WARM LIGHT THEME)
+  static const kBg     = Color(0xFFFFFBF0);      // Warm cream background
+  static const kSurface= Color(0xFFFFFFFF);      // Pure white
+  static const kTeal   = Color(0xFF10B981);      // Fresh green
+  static const kGreen  = Color(0xFF34D399);      // Mint green
+  static const kRed    = Color(0xFFF87171);      // Coral red
+  static const kAmber  = Color(0xFFFB923C);      // Warm amber
+  static const kMuted  = Color(0xFF7D6B5F);      // Warm muted brown
+  static const kBorder = Color(0xFFFFDFC9);      // Warm soft border
 
   @override
   void initState() {
