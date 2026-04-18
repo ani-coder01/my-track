@@ -11,127 +11,149 @@ class DbService {
     try {
       _db = await Db.create(_uri);
       await _db!.open();
-      if (kDebugMode) {
-        print('Connected to MongoDB!');
-      }
+      if (kDebugMode) print('✅ Connected to MongoDB');
     } catch (e) {
-      if (kDebugMode) {
-        print('Error connecting to MongoDB: $e');
-      }
+      if (kDebugMode) print('❌ MongoDB connect error: $e');
     }
   }
 
+  static Future<void> _ensureConnected() async {
+    if (_db == null || !_db!.isConnected) await connect();
+  }
+
+  // ── User profile ──────────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>?> fetchUserData(String email) async {
-    if (_db == null || !_db!.isConnected) {
-      await connect();
-    }
-
-    if (_db == null || !_db!.isConnected) {
-      return null; // Still failed to connect
-    }
-
+    await _ensureConnected();
+    if (_db == null || !_db!.isConnected) return null;
     try {
       final collection = _db!.collection('users');
-      final user = await collection.findOne(where.eq('email', email));
-      return user;
+      return await collection.findOne(where.eq('email', email));
     } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching user data: $e');
-      }
+      if (kDebugMode) print('fetchUserData error: $e');
       return null;
     }
   }
 
-  /// Fetch behavior events for a user (last 30 days)
-  static Future<List<Map<String, dynamic>>> fetchBehaviorEvents(String userId, {int daysBack = 30}) async {
-    if (_db == null || !_db!.isConnected) {
-      await connect();
-    }
+  // ── Update profile ────────────────────────────────────────────────────────
 
-    if (_db == null || !_db!.isConnected) {
-      return [];
-    }
-
+  /// Persist updated profile + sip fields back to MongoDB for `email`.
+  static Future<bool> updateUserProfile(
+    String email, {
+    required String name,
+    required double monthlySalary,
+    required double sipAmount,
+    required double sipReturn,
+    required int sipMonths,
+    String? occupation,
+    String? city,
+  }) async {
+    await _ensureConnected();
+    if (_db == null || !_db!.isConnected) return false;
     try {
-      final collection = _db!.collection('behavior_events');
-      final thirtyDaysAgo = DateTime.now().subtract(Duration(days: daysBack));
-
-      final events = await collection
-          .find(where.eq('userId', userId).gte('timestamp', thirtyDaysAgo))
-          .toList();
-
-      return events.cast<Map<String, dynamic>>();
+      final collection = _db!.collection('users');
+      await collection.updateOne(
+        where.eq('email', email),
+        modify
+            .set('profile.name',          name)
+            .set('profile.monthlySalary', monthlySalary)
+            .set('sip.monthlyAmount',     sipAmount)
+            .set('sip.annualReturn',      sipReturn)
+            .set('sip.durationMonths',    sipMonths)
+            ..set('profile.occupation',   occupation ?? '')
+            ..set('profile.city',         city ?? ''),
+        upsert: true,
+      );
+      if (kDebugMode) print('✅ Profile updated in MongoDB');
+      return true;
     } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching behavior events: $e');
-      }
+      if (kDebugMode) print('updateUserProfile error: $e');
+      return false;
+    }
+  }
+
+  // ── Expenses ──────────────────────────────────────────────────────────────
+
+  /// Fetch all expenses for a user from the `expenses` collection.
+  static Future<List<Map<String, dynamic>>> fetchUserExpenses(String userId) async {
+    await _ensureConnected();
+    if (_db == null || !_db!.isConnected) return [];
+    try {
+      final collection = _db!.collection('expenses');
+      final docs = await collection.find(where.eq('userId', userId)).toList();
+      return docs.cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) print('fetchUserExpenses error: $e');
       return [];
     }
   }
 
-  /// Count skipped decisions in the last N days
+  // ── Goals ─────────────────────────────────────────────────────────────────
+
+  /// Fetch all goals for a user from the `goals` collection.
+  static Future<List<Map<String, dynamic>>> fetchUserGoals(String userId) async {
+    await _ensureConnected();
+    if (_db == null || !_db!.isConnected) return [];
+    try {
+      final collection = _db!.collection('goals');
+      final docs = await collection.find(where.eq('userId', userId)).toList();
+      return docs.cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) print('fetchUserGoals error: $e');
+      return [];
+    }
+  }
+
+  // ── Monthly Snapshots ─────────────────────────────────────────────────────
+
+  /// Fetch last N monthly snapshots for a user from `monthly_snapshots`.
+  static Future<List<Map<String, dynamic>>> fetchMonthlySnapshots(
+    String userId, {
+    int count = 6,
+  }) async {
+    await _ensureConnected();
+    if (_db == null || !_db!.isConnected) return [];
+    try {
+      final collection = _db!.collection('monthly_snapshots');
+      final docs = await collection
+          .find(where.eq('userId', userId).sortBy('month', descending: true).limit(count))
+          .toList();
+      // Sort oldest-first
+      docs.sort((a, b) => (a['month'] as String).compareTo(b['month'] as String));
+      return docs.cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) print('fetchMonthlySnapshots error: $e');
+      return [];
+    }
+  }
+
+  // ── Behavior events ───────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> fetchBehaviorEvents(
+    String userId, {
+    int daysBack = 30,
+  }) async {
+    await _ensureConnected();
+    if (_db == null || !_db!.isConnected) return [];
+    try {
+      final collection = _db!.collection('behavior_events');
+      final cutoff = DateTime.now().subtract(Duration(days: daysBack));
+      final events = await collection
+          .find(where.eq('userId', userId).gte('timestamp', cutoff))
+          .toList();
+      return events.cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) print('fetchBehaviorEvents error: $e');
+      return [];
+    }
+  }
+
   static Future<int> countSkippedDecisions(String userId, {int daysBack = 30}) async {
     final events = await fetchBehaviorEvents(userId, daysBack: daysBack);
     return events.where((e) => e['decision'] == 'skipped').length;
-  }
-
-  /// Calculate total saved from skipped decisions
-  static Future<double> calculateTotalSaved(String userId) async {
-    final events = await fetchBehaviorEvents(userId, daysBack: 365);
-
-    // Estimate savings: each skip saves ~60-70% of avg spend
-    double totalSaved = 0;
-    for (final event in events) {
-      if (event['decision'] == 'skipped') {
-        final appName = event['appName'] as String? ?? '';
-        // Estimate avg spend based on app (simplified)
-        double estSpend = 500;
-        if (appName.contains('Zomato') || appName.contains('Swiggy')) estSpend = 350;
-        else if (appName.contains('Amazon')) estSpend = 1200;
-        else if (appName.contains('Flipkart')) estSpend = 900;
-
-        totalSaved += estSpend * 0.65; // Save ~65% when skipped
-      }
-    }
-
-    return totalSaved;
-  }
-
-  /// Get 6-month income chart data (simulated with slight variations)
-  static Future<List<double>> getFakeSixMonthIncomeData(double salary) async {
-    // Return last 6 months with ±2% variation to simulate real data
-    return [0.98, 0.99, 1.00, 0.99, 1.01, 1.00]
-        .map((factor) => salary * factor)
-        .toList();
-  }
-
-  /// Get user goals
-  static Future<List<Map<String, dynamic>>> fetchUserGoals(String userId) async {
-    if (_db == null || !_db!.isConnected) {
-      await connect();
-    }
-
-    if (_db == null || !_db!.isConnected) {
-      return [];
-    }
-
-    try {
-      final collection = _db!.collection('goals');
-      final goals = await collection
-          .find(where.eq('userId', userId))
-          .toList();
-
-      return goals.cast<Map<String, dynamic>>();
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching goals: $e');
-      }
-      return [];
-    }
   }
 
   static void close() {
     _db?.close();
   }
 }
-
